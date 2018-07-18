@@ -1,2 +1,12 @@
-# doppler_wind_lidar
-Script collection for LIDAR retrievals
+# Doppler wind lidar
+
+Script collection for LIDAR retrievals.
+
+Folders:
+- folder1: ...
+- folder2: ...
+
+### Author
+
+Maren
+
