@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 """
    conversion tool for StreamLine .hpl files into netCDF
+   
+   hpl_to_netcdf(file_path,path_out)
+       data_temp=hpl2dict(file_path)
 """
 import numpy as np
 from netCDF4 import Dataset
-import os,sys
+import os
 from datetime import datetime
 
-
+#function imports .hpl file and stores information in dictionary data_temp
 def hpl2dict(file_path):
     #import hpl files into intercal storage
     with open(file_path, 'r') as text_file:
@@ -65,7 +68,7 @@ def hpl2dict(file_path):
         
     return data_temp
 
-#write data into netCDF file
+#write Dictionary into netCDF file
 def hpl_to_netcdf(file_path,path_out=None):
     
     #check if file exists
@@ -153,13 +156,3 @@ def hpl_to_netcdf(file_path,path_out=None):
     
     print('%s is created succesfully' % path_file)
     
-def main():
-#    script = sys.argv[0]
-    file_path=sys.argv[1]
-    path_out=sys.argv[2]
-
-    hpl_to_netcdf(file_path,path_out)
-
-
-if __name__ == '__main__':
-   main()
