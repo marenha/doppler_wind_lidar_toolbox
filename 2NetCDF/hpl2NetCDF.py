@@ -3,8 +3,8 @@
 """
 conversion tool for StreamLine .hpl files into netCDF
   
-hpl_to_netcdf(file_path,path_out)
-data_temp=hpl2dict(file_path)
+hpl_to_netcdf(file_path,path_out=None,instituation=None,contact=None)
+    data_temp=hpl2dict(file_path)
    
 NetCDF files will be stored in 
 path_out\level0\lidar_id\yyyy\yyyymm\yyyymmdd\file_name.nc
@@ -74,8 +74,7 @@ def hpl2dict(file_path):
     return data_temp
 
 #write Dictionary into netCDF file
-def hpl_to_netcdf(file_path,path_out=None):
-    
+def hpl_to_netcdf(file_path,path_out=None,institution=None,contact=None,overwrite=False):
     #check if file exists
     if not os.path.exists(file_path):
         raise Exception('%s cannot be found' %os.path.basename(file_path))
@@ -101,7 +100,10 @@ def hpl_to_netcdf(file_path,path_out=None):
     
     path_file=os.path.join(path_out_,data_temp['filename'].split('.')[0]+'_l0.nc')
     if os.path.isfile(path_file):
-        raise Exception('%s already exists' % path_file)
+        if overwrite==False:
+            raise Exception('%s already exists' % path_file)
+        else:
+            os.remove(path_file)
 
     dataset_temp=Dataset(path_file,'w',format ='NETCDF4')
         
@@ -121,6 +123,8 @@ def hpl_to_netcdf(file_path,path_out=None):
     dataset_temp.resolution=data_temp['resolution']
     dataset_temp.number_waypoint=data_temp['number_of_waypoints_in_file']
     dataset_temp.history='File created on %s ' % datetime.now().strftime('%d %b %Y %H:%M')
+    dataset_temp.institution=institution
+    dataset_temp.contact=contact
     
     decimal_time=dataset_temp.createVariable('decimal_time', np.float64, ('NUMBER_OF_RAYS'))
     decimal_time.units='decimal time (hours) UTC'
