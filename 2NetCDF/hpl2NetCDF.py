@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-   conversion tool for StreamLine .hpl files into netCDF
+conversion tool for StreamLine .hpl files into netCDF
+  
+hpl_to_netcdf(file_path,path_out)
+data_temp=hpl2dict(file_path)
    
-   hpl_to_netcdf(file_path,path_out)
-       data_temp=hpl2dict(file_path)
+NetCDF files will be stored in 
+path_out\level0\lidar_id\yyyy\yyyymm\yyyymmdd\file_name.nc
+
+--> structure equals structure on lidar systems
 """
 import numpy as np
 from netCDF4 import Dataset
@@ -81,10 +86,20 @@ def hpl_to_netcdf(file_path,path_out=None):
     if path_out==None:
         current_folder_path, current_folder_name = os.path.split(os.getcwd())
         path_out=current_folder_path
-    if not os.path.exists(path_out):
-        os.makedirs(path_out)
+          
+    
+    
+    #NetCDF files will be stored in folder structure which equals the structure on the Lidar systems
+    # path_out\level0\lidar_id\yyyy\yyyymm\yyyymmdd\file_name.nc
+    datestr=[fns for fns in data_temp['filename'].split('_') if len(fns)==8][0]
+    path_out_=os.path.join(path_out,'NetCDF','level0',str(data_temp['system_id']),datestr[0:4],datestr[0:6],datestr)
+    
     # test if file already exists
-    path_file=os.path.join(path_out,data_temp['filename'].split('.')[0]+'_l0.nc')
+    if not os.path.exists(path_out_):
+        os.makedirs(path_out_)
+
+    
+    path_file=os.path.join(path_out_,data_temp['filename'].split('.')[0]+'_l0.nc')
     if os.path.isfile(path_file):
         raise Exception('%s already exists' % path_file)
 
