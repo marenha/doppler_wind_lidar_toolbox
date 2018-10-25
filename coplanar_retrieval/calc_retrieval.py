@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Calculation of two dimensional wind fields for a plane (vertical or horizontal)
+In the horizontal plane (u,v) components will be calculated assuming that
+azimuth=0 corresponds with north direction. For vertical measurements, the plane 
+will be rotated along vertical coordinate z so that u correspons to horizontal 
+wind vector along the plane and v to vertical wind component
+ 
+classes:
+    scan: elevation, azimuth, gate_centers, radial_velocity, snr 
+    retrieval: (x,y,z), (u,v), (sigma_u, sigma_v)
+    grid: delta_l, 
+  
+
+The DL delivers measurement of radial velocity and signal-to-noise ratio for 
+different range gates of fixed length delta_g. These gates have a distance of r from the 
+
+variables:
+    delta_g     range gate length  
+    gr          distance of range gate center to lidar
+    gn          number of range gates
+    (gx,gy,gz)  coordinates of range gate
+    gxy         horizontal distance of gate centers from origin 
+    rn          number of rays (measured profiles)
+    vr          radial velocity (gn x rn)
+    delta_l     lattice width
+    (u,v,w)     two dimensional wind vector
+    (x,y,z)     two dimensional coordiate system of grid 
+    dl_loc      location of Doppler lidar
+    [dlx,dly,dlyz] coordinates of Doppler lidar in global coordinate system 
+"""
+import numpy as np
+'''
+Defintion of classes: scan, grid, retrieval
+'''
+
+class scan:     
+    def __init__(self,el_deg,az_deg,vr,snr,dl_loc,delta_g):
+        #get dimesnions of scan
+        [self.gn,self.rn]=vr.shape
+        
+        #set attributes to class 
+        self.el_deg,self.az_deg=el_deg,az_deg
+        self.vr,self.snr=vr,snr
+        self.dl_loc=dl_loc
+        
+        #distance of range gates centers from lidar
+        r=np.arange(0,self.gn,1)*delta_g+delta_g*.5
+        
+        [dlx,dly,dlz]=dl_loc
+        
+        self.el_rad,self.az_rad=np.deg2rad(el_deg),np.deg2rad(az_deg)
+        
+        #coordinates of measurement in lidar local coordinate system
+        gx_loc=np.outer(r,np.cos(self.el_rad)*np.sin(self.az_rad))
+        gy_loc=np.outer(r,np.cos(self.el_rad)*np.cos(self.az_rad))
+        gz_loc=np.outer(r,np.sin(self.el_rad))
+        
+        #coordinates of measurements in gloabl coordinate sytem
+        self.gx,self.gy,self.gz=gx_loc+dlx,gy_loc+dly,gz_loc+dlz
+        
+        #horizontal distance from origin; defined in a way that distance is 
+        # smaller zero when measurement is taken west (negative x dir.) from origin 
+        gxy=np.sqrt(self.gx**2+self.gy**2)
+        gxy[self.gx<0]*=-1
+        self.gxy=gxy
+        
+        #flatten variables
+        self.gx_flat,self.gy_flat,self.gz_flat=self.gx.flatten(),self.gy.flatten(),self.gz.flatten()
+        self.gxy_flat=self.gxy.flatten()
+        self.vr_flat,self.snr_flat=self.vr.flatten(),self.snr.flatten()
+        self.el_deg_flat,self.az_deg_flat=np.tile(self.el_deg,(self.gn,1)).flatten(),np.tile(self.az_deg,(self.gn,1)).flatten()
+        self.el_rad_flat,self.az_rad_flat=np.tile(self.el_rad,(self.gn,1)).flatten(),np.tile(self.az_rad,(self.gn,1)).flatten()
+      
+# grid for which coplanar retrieval is calculted (inclined planes are NOT possible)
+# x,y,z one dimensional (requirement: uniform grid)
+# xx,yy,zz two dimensional
+# TODO: write python function which finds optimum grid for used scans
+class grid:
+    def __init__(self,x,y,z,delta_l):
+        self.x,self.y,self.z=x,y,z
+        self.delta_l=delta_l
+        
+        if z.shape[0]>1:
+            plane_orientation='vertical'
+            xx,zz=np.meshgrid(x,z)
+            yy,zz=np.meshgrid(y,z)
+        else:
+            plane_orientation='horizontal'
+            xx,yy=np.meshgrid(x,y)
+            zz=np.full(xx.shape,z)
+            
+        self.xx,self.yy,self.zz=xx,yy,zz    
+            
+        self.plane_orientation=plane_orientation
+        
+        # horizontal distance of grid points from origin
+        # negative for negative x direction (see scan.xy)
+        if plane_orientation=='vertical':
+            self.xy=np.sqrt(self.x**2+self.y**2)
+            self.xy[(self.x<0)]*=--1
+            self.xxyy=np.sqrt(self.xx**2+self.yy**2)
+            self.xxyy[self.xx<0]*=-1
+            self.xxyy_flat=self.xxyy.flatten()
+
+        
+        #flatten variables
+        self.xx_flat,self.yy_flat,self.zz_flat=self.xx.flatten(),self.yy.flatten(),self.zz.flatten()
+        self.n=self.xx_flat.shape[0]
+        
+        
+# retrieval contains results of calculation
+# u_flat,v_flat retrieved velocity components on lidar plane
+# n_flat number of valid measuremetns of each lidar per grid cell
+# error_flat error prefactor !!! has to be improved
+class retrieval:
+    def __init__(self,grid,lidar_n,weight):
+        self.u_flat,self.v_flat=np.full(grid.n,np.nan),np.full(grid.n,np.nan)
+        self.error_flat=np.full(grid.n,np.nan)
+        self.n_flat=np.full((grid.n,lidar_n),np.nan)
+        self.scan_type=None
+        self.grid=grid
+        self.weight=weight
+    
+    #calculation of wind speed and reshape of 1d arrays into 2d fields
+    def reshape(self):
+        self.ws_flat=np.sqrt(self.u_flat**2+self.v_flat**2)
+        
+        grid_shape=self.grid.xx.shape
+        self.u,self.v=np.reshape(self.u_flat,grid_shape),np.reshape(self.v_flat,grid_shape)
+        self.ws=np.reshape(self.ws_flat,grid_shape)
+        self.error=np.reshape(self.error_flat,grid_shape)
+        self.n=np.reshape(self.n_flat,grid_shape+(self.n_flat.shape[1],))
+   
+'''
+Main dual Doppler algorithm
+assumptions: grid plane is alogned horizontal (ppis) or vertical (rhi), 
+inclination is NOT possible
+'''
+def calc_retrieval(scan_list,grid,weight=None):
+    R=grid.delta_l/np.sqrt(2)
+    
+    retrieval_temp=retrieval(grid,len(scan_list),weight)
+    
+    if grid.plane_orientation=='horizontal': #ppi, horizontal plane
+#        dd_retrieval_temp.scan_type='ppi'
+        for gi,(x_temp,y_temp,z_temp) in enumerate(zip(grid.xx_flat,grid.yy_flat,grid.zz_flat)): #loop through all grid points
+            # close measurements will be selected in lists 
+            
+            # close measurements will be selected in lists 
+            rv_,az_,w_,li_m=[],[],[],[]
+            temp=[]
+            for li,scan in enumerate(scan_list):
+                R_dist=np.sqrt((scan.gx_flat-x_temp)**2\
+                    +(scan.gy_flat-y_temp)**2)
+                
+                #distance of measurement center to grid point has to be smaller 
+                #R=delta_g/sqrt(2) and only valid measurements are counted
+                ind_temp=np.where((R_dist<=R)&(~np.isnan(scan.vr_flat)))[0]
+                temp.append(len(ind_temp))
+                if len(ind_temp)>0:
+                    w_.append(R_dist[ind_temp])
+                    az_.append(scan.az_deg_flat[ind_temp])
+                    rv_.append(scan.vr_flat[ind_temp])
+                    li_m.append(li)
+                    
+            if len(rv_)>1:
+                if len(rv_)==2:
+                    az_mean_rad=[np.mean(np.deg2rad(az)) for az in az_]
+                    az_diff=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[1]),np.cos(az_mean_rad[0]-az_mean_rad[1]))))
+                    if (az_diff<30)or(az_diff>150):
+                        continue
+                elif len(rv_)==3:
+                    az_mean_rad=[np.mean(np.deg2rad(az)) for az in az_]
+                    #compare1&2
+                    az_diff12=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[1]),np.cos(az_mean_rad[0]-az_mean_rad[1]))))
+                    #compare 1&3
+                    az_diff13=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[2]),np.cos(az_mean_rad[0]-az_mean_rad[2]))))
+                    #compare2&3
+                    az_diff23=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[1]-az_mean_rad[2]),np.cos(az_mean_rad[1]-az_mean_rad[2]))))
+        
+                    if (az_diff12<30)or(az_diff12>150):
+                        lidar_n=[0,2]
+                    elif (az_diff13<30)or(az_diff13>150):
+                        lidar_n=[0,1]  
+                    else:
+                        lidar_n=[0,1,2]
+#                    elif (az_diff23<30)or(az_diff23>150):
+#                        lidar_n=[0,1]
+                    
+                    w_=[w_[t] for t in lidar_n]
+                    az_=[az_[t] for t in lidar_n]
+                    rv_=[rv_[t] for t in lidar_n]
+                    li_m=lidar_n
+                
+                retrieval_temp.n_flat[gi,:]=temp
+                
+                az_temp=np.concatenate(az_)
+                az_temp_rad=np.deg2rad(az_temp)
+
+                # if angle between the measurements is too flat, no wind vector is calculated due to too big errors
+                # see Christinas paper
+                # to do: complete error calculations including mean angle between the two measurements!!!!
+                # + number of measurements for each grid point
+                #calculate error prefactor due to difference in angles
+                az_mean_rad=np.deg2rad([np.mean(at) for at in az_])
+#                at_diff=np.rad2deg(np.abs(np.arctan2(np.sin(el_mean_rad[0]-el_mean_rad[1]),np.cos(el_mean_rad[0]-el_mean_rad[1]))))
+                retrieval_temp.error_flat[gi]=1/(np.sin(az_mean_rad[1]-az_mean_rad[0])**2)
+                
+                rv_temp=np.concatenate(rv_)
+                n=[rv.shape[0] for rv in rv_] # number of measurement points of each lidar
+                N=rv_temp.shape[0] #total number of measurement points
+                
+                W_weight=np.zeros((N,N))
+                retrieval_temp.n_flat[gi,li_m]=n
+
+                W=np.full(N,1)
+    
+                np.fill_diagonal(W_weight,W)
+                # calc 2d wind vector weighted
+                A=np.column_stack((np.cos(az_temp_rad),np.sin(az_temp_rad)))
+                retrieval_temp.v_flat[gi],retrieval_temp.u_flat[gi]=np.dot(np.dot(np.dot(np.linalg.inv(np.dot(np.dot(A.T,W_weight),A)),A.T),W_weight),rv_temp) 
+                
+    elif grid.plane_orientation=='vertical': 
+
+        for gi,(x_temp,y_temp,z_temp) in enumerate(zip(grid.xx_flat,grid.yy_flat,grid.zz_flat)): #loop through all grid points
+            # close measurements will be selected in lists 
+            rv_,el_,w_=[],[],[]
+            for scan in scan_list:
+                R_dist=np.sqrt((scan.gx_flat-x_temp)**2\
+                    +(scan.gy_flat-y_temp)**2\
+                    +(scan.gz_flat-z_temp)**2)
+                
+                #distance of measurement center to grid point has to be smaller 
+                #R=delta_g/sqrt(2) and only valid measurements are counted
+                ind_temp=np.where((R_dist<=R)&(~np.isnan(scan.vr_flat)))[0]
+                if len(ind_temp)>0:
+                    w_.append(R_dist[ind_temp])
+                    el_.append(scan.el_deg_flat[ind_temp])
+                    rv_.append(scan.vr_flat[ind_temp])
+                    
+            if len(rv_)>1:
+                el_[1]=180-el_[1] #both angles must refer to the same system (more universal solution: angle in dependence to vertical??)
+                
+                el_temp=np.concatenate(el_)
+                el_temp_rad=np.deg2rad(el_temp)
+
+                # if angle between the measurements is too flat, no wind vector is calculated due to too big errors
+                # see Christinas paper
+                # to do: complete error calculations including mean angle between the two measurements!!!!
+                # + number of measurements for each grid point
+                #calculate error prefactor due to difference in angles
+                el_mean_rad=np.deg2rad([np.mean(el) for el in el_])
+                el_diff=np.rad2deg(np.abs(np.arctan2(np.sin(el_mean_rad[0]-el_mean_rad[1]),np.cos(el_mean_rad[0]-el_mean_rad[1]))))
+                if (el_diff>160)|(el_diff<20):
+                    continue
+
+                rv_temp=np.concatenate(rv_)
+                n=[rv.shape[0] for rv in rv_] # number of measurement points of each lidar
+                N=rv_temp.shape[0] #total number of measurement points
+
+                retrieval_temp.error_flat[gi]=1/(np.sin(el_mean_rad[1]-el_mean_rad[0])**2)
+                
+                W_weight=np.zeros((N,N))
+                retrieval_temp.n_flat[gi,:]=n
+
+                W=np.full(N,1)
+    
+                np.fill_diagonal(W_weight,W)
+               
+                A=np.column_stack((np.cos(el_temp_rad),np.sin(el_temp_rad)))
+                u_temp,v_temp=np.dot(np.dot(np.dot(np.linalg.inv(np.dot(np.dot(A.T,W_weight),A)),A.T),W_weight),rv_temp)
+        
+                retrieval_temp.u_flat[gi],retrieval_temp.v_flat[gi]=u_temp,v_temp
+            
+    retrieval_temp.reshape()
+    return retrieval_temp
+
+
+ 
