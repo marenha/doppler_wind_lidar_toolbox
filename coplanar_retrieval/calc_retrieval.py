@@ -3,20 +3,23 @@
 """
 Calculation of two dimensional wind fields for a plane (vertical or horizontal)
 In the horizontal plane (u,v) components will be calculated assuming that
-azimuth=0 corresponds with north direction. For vertical measurements, the plane 
-will be rotated along vertical coordinate z so that u correspons to horizontal 
-wind vector along the plane and v to vertical wind component
+azimuth=0 corresponds with north direction. Therefore  u corresponds to the 
+westerly wind component and v to southerly. For vertical measurements, the plane 
+will be rotated along vertical coordinate z in a way that u correspons to horizontal 
+wind vector along the plane and v to vertical wind component.
  
 classes:
-    scan: elevation, azimuth, gate_centers, radial_velocity, snr 
-    retrieval: (x,y,z), (u,v), (sigma_u, sigma_v)
-    grid: delta_l, 
+    scan: el_deg, az_deg, vr, snr, dl_log, delta_g
+    grid: delta_l, (x,y,z) 
+    retrieval: grid, (u,v), weigth,(sigma_u, sigma_v) #TODO: adapt
   
 
 The DL delivers measurement of radial velocity and signal-to-noise ratio for 
 different range gates of fixed length delta_g. These gates have a distance of r from the 
 
 variables:
+    el_deg      elevation of measruemtn in degrees
+    az_deg      azimuth of measurement in degerees
     delta_g     range gate length  
     gr          distance of range gate center to lidar
     gn          number of range gates
@@ -29,12 +32,15 @@ variables:
     (x,y,z)     two dimensional coordiate system of grid 
     dl_loc      location of Doppler lidar
     [dlx,dly,dlyz] coordinates of Doppler lidar in global coordinate system 
+    weigth      used method to weight the collected measurements for each grid point
 """
 import numpy as np
 '''
 Defintion of classes: scan, grid, retrieval
 '''
 
+# variable contains measurements of DL scan
+# for each DL one scan class is defined which includes one scan
 class scan:     
     def __init__(self,el_deg,az_deg,vr,snr,dl_loc,delta_g):
         #get dimesnions of scan
@@ -99,7 +105,7 @@ class grid:
         # negative for negative x direction (see scan.xy)
         if plane_orientation=='vertical':
             self.xy=np.sqrt(self.x**2+self.y**2)
-            self.xy[(self.x<0)]*=--1
+            self.xy[(self.x<0)]*=-1
             self.xxyy=np.sqrt(self.xx**2+self.yy**2)
             self.xxyy[self.xx<0]*=-1
             self.xxyy_flat=self.xxyy.flatten()
