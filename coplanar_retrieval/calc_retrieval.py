@@ -190,8 +190,11 @@ def calc_retrieval(scan_list,grid,weight=None):
                 if len(rv_)==2:
                     az_mean_rad=[np.mean(np.deg2rad(az)) for az in az_]
                     az_diff=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[1]),np.cos(az_mean_rad[0]-az_mean_rad[1]))))
-                    lidar_n_list=[[0,1]]
                     if not valid_angle(az_diff): continue
+                    lidar_n=[0,1]
+                    retrieval_temp.error_flat[gi]=1/(np.sin(np.deg2rad(az_diff))**2)
+                
+                    
                 elif len(rv_)==3:
                     az_mean_rad=[np.mean(np.deg2rad(az)) for az in az_]
                     #calc mean angle between different lidars
@@ -201,56 +204,34 @@ def calc_retrieval(scan_list,grid,weight=None):
         
                     az_diff01_valid,az_diff02_valid,az_diff12_valid=valid_angle(az_diff01),valid_angle(az_diff02),valid_angle(az_diff12)
                     az_diff_valid_sum=sum([az_diff01_valid,az_diff02_valid,az_diff12_valid])
-        
-                    if az_diff_valid_sum==3:
-                        lidar_n_list=[[0,1,2]]
-                    elif az_diff_valid_sum==2:
-                        if not valid_angle(az_diff01):
-                            lidar_n_list=[[0,2],[1,2]]
-                        elif not valid_angle(az_diff02):
-                            lidar_n_list=[[0,1],[1,2]] 
-                        elif not valid_angle(az_diff12):
-                            lidar_n_list=[[0,1],[0,2]] 
-                    elif az_diff_valid_sum==1:
-                        if valid_angle(az_diff01):
-                            lidar_n_list=[[0,1]]
-                        if valid_angle(az_diff02):
-                            lidar_n_list=[[0,2]] 
-                        if valid_angle(az_diff12):
-                            lidar_n_list=[[1,2]] 
-                    else: lidar_n_list=[]
+                    retrieval_temp.error_flat[gi]=np.mean([1/(np.sin(np.deg2rad(az_diff01))**2),1/(np.sin(np.deg2rad(az_diff02))**2),1/(np.sin(np.deg2rad(az_diff12))**2)])
+                
+                
+                    lidar_n=[0,1,2]
+                   
+                w_flat=[w_[t] for t in lidar_n]
+                az_flat=[az_[t] for t in lidar_n]
+                rv_flat=[rv_[t] for t in lidar_n]
+                li_m=lidar_n
+                
+                az_temp=np.concatenate(az_flat)
 
-                v_list,u_list=[],[]  
-                error_list=[]
-                for lidar_n in lidar_n_list:
-                    w_flat=[w_[t] for t in lidar_n]
-                    az_flat=[az_[t] for t in lidar_n]
-                    rv_flat=[rv_[t] for t in lidar_n]
-                    li_m=lidar_n
-                    
-                    az_temp=np.concatenate(az_flat)
+                az_mean_rad=np.deg2rad([np.mean(at) for at in az_flat])
+                
+                rv_temp=np.concatenate(rv_flat)
+                n=[rv.shape[0] for rv in rv_flat] # number of measurement points of each lidar
+                N=rv_temp.shape[0] #total number of measurement points
+                
+                W_weight=np.zeros((N,N))
+                retrieval_temp.n_flat[gi,li_m]=n
+
+                W=np.full(N,1)
     
-                    az_mean_rad=np.deg2rad([np.mean(at) for at in az_flat])
-                    error_temp=1/(np.sin(az_mean_rad[1]-az_mean_rad[0])**2)
-                    
-                    rv_temp=np.concatenate(rv_flat)
-                    n=[rv.shape[0] for rv in rv_flat] # number of measurement points of each lidar
-                    N=rv_temp.shape[0] #total number of measurement points
-                    
-                    W_weight=np.zeros((N,N))
-                    retrieval_temp.n_flat[gi,li_m]=n
-    
-                    W=np.full(N,1)
-        
-                    np.fill_diagonal(W_weight,W)
-                    # calc 2d wind vector weighted
-                    u_temp,v_temp=vr2uv(np.deg2rad(az_temp),W_weight,rv_temp)
-                    v_list.append(v_temp)
-                    u_list.append(u_temp)
-                    error_list.append(error_temp)
-                #TODO average according to specific error
-                retrieval_temp.error_flat[gi]=np.nanmean(error_list)
-                retrieval_temp.v_flat[gi],retrieval_temp.u_flat[gi]=np.nanmean(u_list),np.nanmean(v_list)
+                np.fill_diagonal(W_weight,W)
+                # calc 2d wind vector weighted
+                u_temp,v_temp=vr2uv(np.deg2rad(az_temp),W_weight,rv_temp)
+
+                retrieval_temp.v_flat[gi],retrieval_temp.u_flat[gi]=u_temp,v_temp
                 
     elif grid.plane_orientation=='vertical': 
 
