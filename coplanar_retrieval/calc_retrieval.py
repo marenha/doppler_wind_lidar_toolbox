@@ -85,17 +85,20 @@ class scan:
 # TODO: write python function which finds optimum grid for used scans
 class grid:
     def __init__(self,x,y,z,delta_l):
-        self.x,self.y,self.z=x,y,z
         self.delta_l=delta_l
+        self.x,self.y,self.z=x,y,z
         
-        if z.shape[0]>1:
-            plane_orientation='vertical'
-            xx,zz=np.meshgrid(x,z)
-            yy,zz=np.meshgrid(y,z)
-        else:
+        if type(z)==int:
+        
             plane_orientation='horizontal'
+
             xx,yy=np.meshgrid(x,y)
             zz=np.full(xx.shape,z)
+        else:    
+            plane_orientation='vertical'
+            
+            xx,zz=np.meshgrid(x,z)
+            yy,zz=np.meshgrid(y,z)
             
         self.xx,self.yy,self.zz=xx,yy,zz    
             
@@ -138,6 +141,16 @@ class retrieval:
         self.ws=np.reshape(self.ws_flat,grid_shape)
         self.error=np.reshape(self.error_flat,grid_shape)
         self.n=np.reshape(self.n_flat,grid_shape+(self.n_flat.shape[1],))
+
+def vr2uv(angles_rad,W_weight,vr_array):
+    
+    A=np.column_stack((np.cos(angles_rad),np.sin(angles_rad)))
+    u,v=np.dot(np.dot(np.dot(np.linalg.inv(np.dot(np.dot(A.T,W_weight),A)),A.T),W_weight),vr_array) 
+    
+    return u,v
+
+def valid_angle(angle):
+    return ((angle>30)and(angle<150))
    
 '''
 Main dual Doppler algorithm
@@ -172,61 +185,72 @@ def calc_retrieval(scan_list,grid,weight=None):
                     li_m.append(li)
                     
             if len(rv_)>1:
+                retrieval_temp.n_flat[gi,:]=temp
+                
                 if len(rv_)==2:
                     az_mean_rad=[np.mean(np.deg2rad(az)) for az in az_]
                     az_diff=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[1]),np.cos(az_mean_rad[0]-az_mean_rad[1]))))
-                    if (az_diff<30)or(az_diff>150):
-                        continue
+                    lidar_n_list=[[0,1]]
+                    if not valid_angle(az_diff): continue
                 elif len(rv_)==3:
                     az_mean_rad=[np.mean(np.deg2rad(az)) for az in az_]
-                    #compare1&2
-                    az_diff12=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[1]),np.cos(az_mean_rad[0]-az_mean_rad[1]))))
-                    #compare 1&3
-                    az_diff13=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[2]),np.cos(az_mean_rad[0]-az_mean_rad[2]))))
-                    #compare2&3
-                    az_diff23=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[1]-az_mean_rad[2]),np.cos(az_mean_rad[1]-az_mean_rad[2]))))
+                    #calc mean angle between different lidars
+                    az_diff01=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[1]),np.cos(az_mean_rad[0]-az_mean_rad[1]))))
+                    az_diff02=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[0]-az_mean_rad[2]),np.cos(az_mean_rad[0]-az_mean_rad[2]))))
+                    az_diff12=np.rad2deg(np.abs(np.arctan2(np.sin(az_mean_rad[1]-az_mean_rad[2]),np.cos(az_mean_rad[1]-az_mean_rad[2]))))
         
-                    if (az_diff12<30)or(az_diff12>150):
-                        lidar_n=[0,2]
-                    elif (az_diff13<30)or(az_diff13>150):
-                        lidar_n=[0,1]  
-                    else:
-                        lidar_n=[0,1,2]
-#                    elif (az_diff23<30)or(az_diff23>150):
-#                        lidar_n=[0,1]
-                    
-                    w_=[w_[t] for t in lidar_n]
-                    az_=[az_[t] for t in lidar_n]
-                    rv_=[rv_[t] for t in lidar_n]
+                    az_diff01_valid,az_diff02_valid,az_diff12_valid=valid_angle(az_diff01),valid_angle(az_diff02),valid_angle(az_diff12)
+                    az_diff_valid_sum=sum([az_diff01_valid,az_diff02_valid,az_diff12_valid])
+        
+                    if az_diff_valid_sum==3:
+                        lidar_n_list=[[0,1,2]]
+                    elif az_diff_valid_sum==2:
+                        if not valid_angle(az_diff01):
+                            lidar_n_list=[[0,2],[1,2]]
+                        elif not valid_angle(az_diff02):
+                            lidar_n_list=[[0,1],[1,2]] 
+                        elif not valid_angle(az_diff12):
+                            lidar_n_list=[[0,1],[0,2]] 
+                    elif az_diff_valid_sum==1:
+                        if valid_angle(az_diff01):
+                            lidar_n_list=[[0,1]]
+                        if valid_angle(az_diff02):
+                            lidar_n_list=[[0,2]] 
+                        if valid_angle(az_diff12):
+                            lidar_n_list=[[1,2]] 
+                    else: lidar_n_list=[]
+
+                v_list,u_list=[],[]  
+                error_list=[]
+                for lidar_n in lidar_n_list:
+                    w_flat=[w_[t] for t in lidar_n]
+                    az_flat=[az_[t] for t in lidar_n]
+                    rv_flat=[rv_[t] for t in lidar_n]
                     li_m=lidar_n
-                
-                retrieval_temp.n_flat[gi,:]=temp
-                
-                az_temp=np.concatenate(az_)
-                az_temp_rad=np.deg2rad(az_temp)
-
-                # if angle between the measurements is too flat, no wind vector is calculated due to too big errors
-                # see Christinas paper
-                # to do: complete error calculations including mean angle between the two measurements!!!!
-                # + number of measurements for each grid point
-                #calculate error prefactor due to difference in angles
-                az_mean_rad=np.deg2rad([np.mean(at) for at in az_])
-#                at_diff=np.rad2deg(np.abs(np.arctan2(np.sin(el_mean_rad[0]-el_mean_rad[1]),np.cos(el_mean_rad[0]-el_mean_rad[1]))))
-                retrieval_temp.error_flat[gi]=1/(np.sin(az_mean_rad[1]-az_mean_rad[0])**2)
-                
-                rv_temp=np.concatenate(rv_)
-                n=[rv.shape[0] for rv in rv_] # number of measurement points of each lidar
-                N=rv_temp.shape[0] #total number of measurement points
-                
-                W_weight=np.zeros((N,N))
-                retrieval_temp.n_flat[gi,li_m]=n
-
-                W=np.full(N,1)
+                    
+                    az_temp=np.concatenate(az_flat)
     
-                np.fill_diagonal(W_weight,W)
-                # calc 2d wind vector weighted
-                A=np.column_stack((np.cos(az_temp_rad),np.sin(az_temp_rad)))
-                retrieval_temp.v_flat[gi],retrieval_temp.u_flat[gi]=np.dot(np.dot(np.dot(np.linalg.inv(np.dot(np.dot(A.T,W_weight),A)),A.T),W_weight),rv_temp) 
+                    az_mean_rad=np.deg2rad([np.mean(at) for at in az_flat])
+                    error_temp=1/(np.sin(az_mean_rad[1]-az_mean_rad[0])**2)
+                    
+                    rv_temp=np.concatenate(rv_flat)
+                    n=[rv.shape[0] for rv in rv_flat] # number of measurement points of each lidar
+                    N=rv_temp.shape[0] #total number of measurement points
+                    
+                    W_weight=np.zeros((N,N))
+                    retrieval_temp.n_flat[gi,li_m]=n
+    
+                    W=np.full(N,1)
+        
+                    np.fill_diagonal(W_weight,W)
+                    # calc 2d wind vector weighted
+                    u_temp,v_temp=vr2uv(np.deg2rad(az_temp),W_weight,rv_temp)
+                    v_list.append(v_temp)
+                    u_list.append(u_temp)
+                    error_list.append(error_temp)
+                #TODO average according to specific error
+                retrieval_temp.error_flat[gi]=np.nanmean(error_list)
+                retrieval_temp.v_flat[gi],retrieval_temp.u_flat[gi]=np.nanmean(u_list),np.nanmean(v_list)
                 
     elif grid.plane_orientation=='vertical': 
 
