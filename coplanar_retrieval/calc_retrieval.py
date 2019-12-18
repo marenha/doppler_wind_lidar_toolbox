@@ -222,12 +222,16 @@ def calc_retrieval(scan_list,grid,weight=None):
                 n=[rv.shape[0] for rv in rv_flat] # number of measurement points of each lidar
                 N=rv_temp.shape[0] #total number of measurement points
                 
-                W_weight=np.zeros((N,N))
                 retrieval_temp.n_flat[gi,li_m]=n
-
-                W=np.full(N,1)
-    
+                
+                #TODO more possibibilities for calculation weights
+                W_weight=np.zeros((N,N))
+                if weight is None:
+                    W=np.full(N,1)
+                elif weight=='lidar':
+                    W=np.concatenate([np.full(n_temp,1/n_temp) for n_temp in n])
                 np.fill_diagonal(W_weight,W)
+                
                 # calc 2d wind vector weighted
                 u_temp,v_temp=vr2uv(np.deg2rad(az_temp),W_weight,rv_temp)
 
@@ -258,7 +262,7 @@ def calc_retrieval(scan_list,grid,weight=None):
                 el_temp_rad=np.deg2rad(el_temp)
 
                 # if angle between the measurements is too flat, no wind vector is calculated due to too big errors
-                # see Christinas paper
+                # see Stawiarski et al. (2013), doi:10.1175/JTECH-D-12-00244.1
                 # to do: complete error calculations including mean angle between the two measurements!!!!
                 # + number of measurements for each grid point
                 #calculate error prefactor due to difference in angles
@@ -272,13 +276,17 @@ def calc_retrieval(scan_list,grid,weight=None):
                 N=rv_temp.shape[0] #total number of measurement points
 
                 retrieval_temp.error_flat[gi]=1/(np.sin(el_mean_rad[1]-el_mean_rad[0])**2)
-                
-                W_weight=np.zeros((N,N))
-                retrieval_temp.n_flat[gi,:]=n
 
-                W=np.full(N,1)
-    
+                retrieval_temp.n_flat[gi,:]=n
+                
+                #TODO more possibibilities for calculation weights
+                W_weight=np.zeros((N,N))
+                if weight is None:
+                    W=np.full(N,1)
+                elif weight=='lidar':
+                    W=np.concatenate([np.full(n_temp,1/n_temp) for n_temp in n])
                 np.fill_diagonal(W_weight,W)
+
                
                 A=np.column_stack((np.cos(el_temp_rad),np.sin(el_temp_rad)))
                 u_temp,v_temp=np.dot(np.dot(np.dot(np.linalg.inv(np.dot(np.dot(A.T,W_weight),A)),A.T),W_weight),rv_temp)
