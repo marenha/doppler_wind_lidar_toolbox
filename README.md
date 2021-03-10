@@ -1,6 +1,12 @@
-# Doppler wind lidar
+# Doppler wind lidar toolbox
 
-Script collection for Doppler wind lidar scripts.
+This toolbox contains modules for 
+- data formatting (e.g., `2NetCDF`)
+- estimating retrievals from Doppler wind lidar data (e.g., `coplanar_retrieval` and `VAD_retrieval`)
+- creating figures of lidar data (e.g., `quicklooks`) 
+- writing scan files and scan schedules for the StreamLine (SL) software (`SL_scan_files`). 
+
+**These modules do not constitute any claim with regard to correctness or completeness. Everyone is welcome to contribute and improve.**
 
 ## 2NetCDF 
 ### hpl2NetCDF.py
