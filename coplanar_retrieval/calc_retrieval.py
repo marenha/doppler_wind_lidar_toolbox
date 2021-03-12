@@ -42,7 +42,7 @@ Defintion of classes: scan, grid, retrieval
 # variable contains measurements of DL scan
 # for each DL one scan class is defined which includes one scan
 class scan:     
-    def __init__(self,el_deg,az_deg,vr,snr,dl_loc,delta_g):
+    def __init__(self,el_deg,az_deg,vr,snr,dl_loc,r):
         #get dimesnions of scan
         [self.gn,self.rn]=vr.shape
         
@@ -50,9 +50,6 @@ class scan:
         self.el_deg,self.az_deg=el_deg,az_deg
         self.vr,self.snr=vr,snr
         self.dl_loc=dl_loc
-        
-        #distance of range gates centers from lidar
-        r=np.arange(0,self.gn,1)*delta_g+delta_g*.5
         
         [dlx,dly,dlz]=dl_loc
         
@@ -78,7 +75,21 @@ class scan:
         self.vr_flat,self.snr_flat=self.vr.flatten(),self.snr.flatten()
         self.el_deg_flat,self.az_deg_flat=np.tile(self.el_deg,(self.gn,1)).flatten(),np.tile(self.az_deg,(self.gn,1)).flatten()
         self.el_rad_flat,self.az_rad_flat=np.tile(self.el_rad,(self.gn,1)).flatten(),np.tile(self.az_rad,(self.gn,1)).flatten()
-      
+        
+    def to_grid(self,grid):
+        R=grid.delta_l/np.sqrt(2)
+
+        rv_grid_flat=np.full(grid.n,np.nan)
+        for gi,(x_temp,y_temp,z_temp) in enumerate(zip(grid.xx_flat,grid.yy_flat,grid.zz_flat)): #loop through all grid points
+            rv_=[]
+            R_dist=np.sqrt((self.gx_flat-x_temp)**2\
+                +(self.gy_flat-y_temp)**2)
+            ind_temp=np.where((R_dist<=R)&(~np.isnan(self.vr_flat)))[0]
+            if len(ind_temp)>0:
+                rv_.append(self.vr_flat[ind_temp])
+                rv_grid_flat[gi]=np.mean(rv_)
+                
+        self.vr_grid=np.reshape(rv_grid_flat,grid.xx.shape)
 # grid for which coplanar retrieval is calculted (inclined planes are NOT possible)
 # x,y,z one dimensional (requirement: uniform grid)
 # xx,yy,zz two dimensional
@@ -88,7 +99,7 @@ class grid:
         self.delta_l=delta_l
         self.x,self.y,self.z=x,y,z
         
-        if type(z)==int:
+        if len(z)==1:
         
             plane_orientation='horizontal'
 
