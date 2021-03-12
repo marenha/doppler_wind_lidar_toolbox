@@ -28,14 +28,12 @@ Scripts to create figures of raw data or retrieved variables.
 - `plot_vad.py`: time-height diagrams of horizontal wind.
 
 ## SL_scanfiles
-Writing .txt files which can be used in the StreamLine software to perform different scan pattern and scan scenarios
+Writing .txt files which can be used in the StreamLine (SL) software to perform different scan pattern and scan scenarios
 
-### `write_scan_file.py`
-Creating scan files for various scan pattern like RHI and PPI scans. 
+- `write_scan_file.py`: creating scan files for various scan pattern like RHI and PPI scans. 
 
-- `write_dss_example.py`: write a daily scan schedule for StreamLine software
-- 
-- `write_dss_example.py`: write daily scan scedule (dss) for example scan secanio
+- `write_dss_example.py`: write daily scan scedule (dss) for example scan secanio.
+
 
 
 
