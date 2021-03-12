@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-conversion tool for StreamLine .hpl files into netCDF
-
-hpl_to_netcdf(file_path,path_out=None,instituation=None,contact=None)
-    data_temp=hpl2dict(file_path)
-NetCDF files will be stored in
-path_out\level0\lidar_id\yyyy\yyyymm\yyyymmdd\file_name.nc
-
---> structure equals structure on lidar systems
+Conversion tool for StreamLine .hpl files into netCDF (.nc) files:
+    
+    - hpl2dict(): import .hpl files and save as dictionary
+    - hpl_to_netcdf(): save .hpl files into level0 (l0) .nc files
+    - to_netcdf_l1(): correct raw data (l0) and create level1 (l1) netCDF files
+    
 """
 import numpy as np
 from netCDF4 import Dataset
@@ -18,10 +16,10 @@ import xarray as xr
 import matplotlib.dates as mdates
 
 '''
-import of .hpl files and return data as dictionary;
-in newer versions of the StreamLine software, the spectral width can be 
-stored as additional parameter; in case, the spectral width is not included
-in the .hpl file, the item "spectral_width" is filled with NaNs
+Import of StreamLine .hpl (txt) files and save locally in directory. Therefore
+the data is converted into matrices with dimension "number of range gates" x "time stamp/rays".
+In newer versions of the StreamLine software, the spectral width can be 
+stored as additional parameter in the .hpl files.
 '''
 def hpl2dict(file_path):
     #import hpl files into intercal storage
@@ -42,12 +40,13 @@ def hpl2dict(file_path):
     rays_n=(len(lines)-header_n)/(data_temp['number_of_gates']+1)
     
     '''
-    number of lines does not math expected format if the number of gates 
-    changed in the measuring period of the data file
+    number of lines does not match expected format if the number of range gates 
+    was changed in the measuring period of the data file (especially possible for stare data)
     '''
     if not rays_n.is_integer():
         print('Number of lines does not match expected format')
         return np.nan
+    
     data_temp['no_of_rays_in_file']=int(rays_n)
     data_temp['scan_type']=' '.join(lines[7].split()[2:])
     data_temp['focus_range']=lines[8].split()[-1]
@@ -70,7 +69,8 @@ def hpl2dict(file_path):
     data_temp['decimal_time'] = np.full(rays_n,np.nan) #hours
     data_temp['pitch'] = np.full(rays_n,np.nan) #degrees
     data_temp['roll'] = np.full(rays_n,np.nan) #degrees
-    for ri in range(0,rays_n): #loop through rays
+    
+    for ri in range(0,rays_n): #loop rays
         lines_temp = lines[header_n+(ri*gates_n)+ri+1:header_n+(ri*gates_n)+gates_n+ri+1]
         header_temp = np.asarray(lines[header_n+(ri*gates_n)+ri].split(),dtype=float)
         data_temp['decimal_time'][ri] = header_temp[0]
@@ -78,7 +78,7 @@ def hpl2dict(file_path):
         data_temp['elevation'][ri] = header_temp[2]
         data_temp['pitch'][ri] = header_temp[3]
         data_temp['roll'][ri] = header_temp[4]
-        for gi in range(0,gates_n): #loop through range gates
+        for gi in range(0,gates_n): #loop range gates
             line_temp=np.asarray(lines_temp[gi].split(),dtype=float)
             data_temp['radial_velocity'][gi,ri] = line_temp[1]
             data_temp['intensity'][gi,ri] = line_temp[2]
@@ -89,8 +89,8 @@ def hpl2dict(file_path):
     return data_temp
 
 '''
-write .hpl into netCDF l0 data; no data is added, changed or removed;
-infromation about institution and contact are optional; 
+Write .hpl into netCDF l0 data; no data is added, changed or removed;
+additional information about institution and contact are optional; 
 '''
 def hpl_to_netcdf(file_path,path_out,institution=None,contact=None,overwrite=False):
     #check if import file exists
@@ -189,7 +189,7 @@ def hpl_to_netcdf(file_path,path_out,institution=None,contact=None,overwrite=Fal
     print('%s is created succesfully' % path_file)
 
 '''
-convert level0 netCDF data into level1 data
+convert level0 netCDF data into level1 netCDF data
 input variables:
     file_path       - string
     file_name_out   - string
