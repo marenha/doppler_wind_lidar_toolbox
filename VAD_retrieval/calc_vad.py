@@ -4,7 +4,7 @@
 Created on Fri May  5 13:02:47 2017
 Estimation of horizontal wind from Velocity-Azimuth Display (VAD) scans 
 
-These methods are based on the following literature:
+These methods are based on the following literature (i.a.,):
     - Browning and Wexler (1968); DOI: 10.1175/1520-0450(1968)007<0105:TDOKPO>2.0.CO;2
     - Eberhard et al. (1989); DOI: 10.1175/1520-0426(1989)006<0809:DLMOPO>2.0.CO;2
     
