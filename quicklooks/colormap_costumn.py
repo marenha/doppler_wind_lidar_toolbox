@@ -2,31 +2,29 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Oct  3 07:54:59 2018
-colormaps
+Self-created colormaps
+e.g., they are used for the Lidar quicklooks at http://ertel2.uibk.ac.at:8080/lidar/
+
+Design by Lukas Lehner und Alexander Gohm (ACINN, https://www.uibk.ac.at/acinn/index.html.en)
 @author: maren
 """
 import matplotlib as mpl
     
+'''
+load all colormaps 
+The name relates to their original usage: 
+c_map_snr   - Doppler wind lidar Signal-to-noise ratio
+c_map_ws    - Doppler wind lidar wind speed
+c_map_rv    - Doppler wind lidar radial velocity
+'''
 def load_colormaps():
     c_map=reverse_colourmap(mpl.cm.get_cmap('Spectral'))
-#    c_map=replace_middle_colourmap(c_map)
-#    c_map_snr=reverse_colourmap(mpl.cm.get_cmap('winter'))
     c_map_snr=load_colormap_snr()
     c_map_ws=load_color_ws()
     c_map_rv=load_colormap_rv()
     
     return c_map,c_map_snr,c_map_ws,c_map_rv
 
-#def replace_middle_colourmap(cmap_str):
-#    cmap=plt.get_cmap(cmap_str)
-#    cmaplist=[cmap(i) for i in range(cmap.N)]
-#    ind_middle=np.arange(0,(len(cmaplist)))
-#    for ind in ind_middle:
-#        cmaplist[ind]=tuple([cmaplist[ind][0]-0.2,cmaplist[ind][1]-0.2,cmaplist[ind][2]-0.5,1.0])
-#
-#    c_map = cmap.from_list('Custom cmap', cmaplist, cmap.N)
-#    
-#    return c_map
 
 def load_colormap_snr():
     C=["#DCF2F4","#D1ECF0","#C6E7ED","#BBE0E9","#B0DAE5","#A5D4E2",

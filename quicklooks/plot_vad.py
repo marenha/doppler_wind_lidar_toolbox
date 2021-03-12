@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Mar  4 15:28:43 2021
-Plot VAD scans
+Time-heght diagram of vertical profiles of horizontal wind speed and additionally
+parameters:
+    - plot_VAD_day: create plot of horizontal wind, vertical velocity and variance of radial velocity fluctuation for complete day
 @author: Maren
 """
 import os,sys
@@ -13,12 +15,21 @@ import matplotlib.dates as mdates
 
 import colormap_costumn as cm
 
+# Plot paramters 
 mpl.rcParams.update({'font.size':16})
 c_map,c_map_snr,c_map_ws,c_map_rv=cm.load_colormaps() 
-dtn=(24*60*60)
+dtn=(24*60*60) # second of day
 
 '''
-Create Plot for one day of retrieved horizontal wind
+create plot of horizontal wind, vertical velocity and radial velocity fluctuation 
+for complete day and save as .png file
+Input:
+    - file_path     - path of *_vad.nc input file
+    - path_out      - path for output .png figure
+    - lidar_str     - Lidar name
+    - date_str      - day 'yyyymmdd'
+    - z_ref         - surface height above mean sea level
+    - location      - location name
 '''
 def plot_VAD_day(file_path,path_out,lidar_str,date_str,z_ref,location):
     plt.ioff()
@@ -93,7 +104,8 @@ def plot_VAD_day(file_path,path_out,lidar_str,date_str,z_ref,location):
     cb_temp=fig.colorbar(pc_temp,cax=cax[0],ticks=np.arange(0,21,4),extend='max')
     cb_temp.set_label('$\overline{u_h}$ (m s$^{-1}$)')
     #    cb_temp.ax.tick_params(labelsize=fs)
-            
+        
+    #%% Create legend for wind barbs    
     legend_axes = fig.add_axes([0.1, 0.95, 0.18, 0.04]) 
     #legend_axes.set_frame_on(False)
     legend_axes.patch.set_visible(False)
@@ -150,11 +162,12 @@ def plot_VAD_day(file_path,path_out,lidar_str,date_str,z_ref,location):
     cb_temp=fig.colorbar(pc_temp,cax=cax[2],ticks=np.arange(0,4.1,1),extend='both')
     cb_temp.set_label('$\overline{v_r^{\prime 2}}$ (m$^2$ s$^{-1}$)')
     
+    #%% Figure title
     fig.text(.1,.5,'height above reference level (km)',rotation=90,va='center')
     fig.text(.16,.93,'reference level: %i m MSL' %z_ref,ha='left',va='top',size=12)
     fig.text(0.5,0.95,'%s lidar at %s (%s m MSL): %s' %(lidar_str,location,z_ref,mdates.num2datestr(date_num,'%d-%b-%Y')),ha='center',va='bottom')
     
-    # save figure
+    #%% save figure
     plot_file_name='%s_%s_vad.png' %(lidar_str,date_str)
     plt.savefig(os.path.join(path_out,plot_file_name),bbox_inches='tight')
     plt.close(fig)
