@@ -65,14 +65,16 @@ Output:
     - u in m/s: component of 2D wind vector pointing east
     - v in m/s: component of 2D wind vector pointing north
 '''
-def calc_vad_2d(rv,az,el):
+def calc_vad_2d(rv,az_deg,el_deg):
+    az_rad = np.deg2rad(az_deg)
+    el_rad = np.deg2rad(el_deg)
     
-    b1 = np.nansum(rv*np.cos(np.deg2rad(el))*np.sin(np.deg2rad(az)))
-    b2 = np.nansum(rv*np.cos(np.deg2rad(el))*np.cos(np.deg2rad(az)))
-    a11 = np.nansum(np.cos(np.deg2rad(el))**2*np.sin(np.deg2rad(az))**2)
-    a12 = np.nansum(np.cos(np.deg2rad(el))**2*np.cos(np.deg2rad(az))*np.sin(np.deg2rad(az)))
-    a21 = np.nansum(np.cos(np.deg2rad(el))**2*np.cos(np.deg2rad(az))*np.sin(np.deg2rad(az)))
-    a22 = np.nansum(np.cos(np.deg2rad(el))**2*np.cos(np.deg2rad(az))**2)
+    b1 = np.nansum(rv*np.cos(el_rad)*np.sin(az_rad))
+    b2 = np.nansum(rv*np.cos(el_rad)*np.cos(az_rad))
+    a11 = np.nansum(np.cos(el_rad)**2*np.sin(az_rad)**2)
+    a12 = np.nansum(np.cos(el_rad)**2*np.cos(az_rad)*np.sin(az_rad))
+    a21 = np.nansum(np.cos(el_rad)**2*np.cos(az_rad)*np.sin(az_rad))
+    a22 = np.nansum(np.cos(el_rad)**2*np.cos(az_rad)**2)
 
     detA = a11*a22-a12*a21
     
