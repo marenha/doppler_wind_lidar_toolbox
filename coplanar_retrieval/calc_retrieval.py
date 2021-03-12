@@ -7,6 +7,15 @@ azimuth=0 corresponds with north direction. Therefore  u corresponds to the
 westerly wind component and v to southerly. For vertical measurements, the plane 
 will be rotated along vertical coordinate z in a way that u correspons to horizontal 
 wind vector along the plane and v to vertical wind component.
+
+Literature (i.a.,):
+    - Collier et al. (2005; DOI 10.1175/BAMS-86-6-825)
+    - Davies et al. (2005; DOI 10.1088/1464-4258/7/6/005)
+    - Newsom et al. (2005; DOI 10.1175/JAM2280.1)
+    - Newsom et al. (2008; DOI 10.1007/s10546-007-9243-0)
+    - Hill et al. (2010; DOI 10.1175/2009JAS3016.1)
+    - Stawiarski et al. (2013; DOI 10.1175/JTECH-D-12-00244.1)
+    - Cherukuru et al. (2015; DOI 10.1117/1.JRS.9.096090)
  
 classes:
     scan: el_deg, az_deg, vr, snr, dl_log, delta_g
