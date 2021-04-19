@@ -29,6 +29,8 @@ Input:
 class vad():
     def __init__(self,dn,gz,u,v,w,ws,wd,rv_fluc,snr,range_gate_length,snr_threshold,el_deg,an,u_nf,v_nf):
         self.dn = dn 
+        self.gz = gz
+        
         self.u, self.v, self.w = u, v, w 
         self.ws, self. wd = ws, wd 
         self.rv_fluc = rv_fluc
@@ -58,7 +60,7 @@ def to_netcdf(lidar_info, vad, path_out):
         os.makedirs(path_out)  
         
     day_str = mdates.num2datestr(vad.dn[0],'%Y%m%d')
-    file_name='%s_%s_vad.nc' %(lidar_info['lidar_id'],day_str)
+    file_name='%s_%s_vad.nc' %(lidar_info.lidar_id,day_str)
     file_path=os.path.join(path_out,file_name)
 
     if os.path.isfile(file_path):
@@ -76,11 +78,11 @@ def to_netcdf(lidar_info, vad, path_out):
     dataset_temp.institution = "Department of Atmospheric and Cryospheric sciences (ACINN), University of Innsbruck, AUSTRIA",
     dataset_temp.contact = "Alexander Gohm (alexander.gohm@uibk.ac.at),Maren Haid, Lukas Lehner"
     dataset_temp.range_gate_length = vad.range_gate_length
-    dataset_temp.system_id = lidar_info['lidar_id']
+    dataset_temp.system_id = lidar_info.lidar_id
     dataset_temp.history = 'File created %s by M. Haid' %date.today().strftime('%d %b %Y')
-    dataset_temp.lat = lidar_info['lat']
-    dataset_temp.lon = lidar_info['lon']
-    dataset_temp.alt = lidar_info['lat']
+    dataset_temp.lat = lidar_info.lat
+    dataset_temp.lon = lidar_info.lon
+    dataset_temp.alt = lidar_info.zsl
     dataset_temp.snr_threshold = '%.2f dB' %vad.snr_threshold
     dataset_temp.location_information = 'SLX142 located in trailer next to i-Box station in Kolsass during CROSSINN field campaign. Location coordinates are taken from tiris map'
     
@@ -90,7 +92,7 @@ def to_netcdf(lidar_info, vad, path_out):
     elevation.description = 'elevation of rays (number of rays specified in variable: rays) for VAD scan'
     elevation[:] = vad.el_deg
     
-    rays = dataset_temp.createVariable('rays',np.int64, ('STATION_KEY'))
+    rays = dataset_temp.createVariable('rays',np.int64, ('NUMBER_OF_SCANS'))
     rays.units = 'unitless'
     rays.long_name = 'number of rays'
     rays.description = 'number of rays used to calculate mean wind profile (VAD algorithm) within the interval'
