@@ -11,7 +11,7 @@ This directory contains modules for the convertion of Doppler wind lidar data in
 
 - `hpl2NetCDF.py`: data formatting of StreamLine .hpl files into level 0 (l0) .nc files and convertion from l0 .nc files into corrected level 1 (l1) .nc files.
 
-- `vad2NetCDF.py`: in preparation
+- `vad2NetCDF.py`: write daily .nc files of retrieved vertical profiles of horizontal wind. 
 
 ## colpanar_retrievals
 Calculation of two-dimensional wind fields from Doppler wind lidar coplanar scans. 
