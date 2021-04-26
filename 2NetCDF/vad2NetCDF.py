@@ -60,7 +60,7 @@ def to_netcdf(lidar_info, vad, path_out):
         os.makedirs(path_out)  
         
     day_str = mdates.num2datestr(vad.dn[0],'%Y%m%d')
-    file_name='%s_%s_vad.nc' %(lidar_info.lidar_id,day_str)
+    file_name='%s_%s_vad.nc' %(lidar_info.name,day_str)
     file_path=os.path.join(path_out,file_name)
 
     if os.path.isfile(file_path):
@@ -99,15 +99,15 @@ def to_netcdf(lidar_info, vad, path_out):
     rays[:] = vad.an
     
     datenum = dataset_temp.createVariable('datenum',np.float64, ('NUMBER_OF_SCANS'))
-    datenum.units = 'Number of days from January 0, 0000'
+    datenum.units = 'Number of days from January 1, 0001 in UTC'
     datenum.long_name = 'start time of each conical scan'
-    datenum.description = 'datenum (matlab) timestamp'
+    datenum.description = 'datenum timestamp'
     datenum[:] = vad.dn
     
     unixtime = (vad.dn-mdates.datestr2num('19700101'))*(24*60*60)
     
     time = dataset_temp.createVariable('time',np.int64, ('NUMBER_OF_SCANS'))
-    time.units = 'Seconds since 01-01-1970 00:00:00'
+    time.units = 'Seconds since 01-01-1970 00:00:00 in UTC'
     time.long_name = 'start time of each conical scan'
     time.description = 'UNIX timestamp'
     time[:] = unixtime
